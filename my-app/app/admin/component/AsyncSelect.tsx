@@ -40,11 +40,11 @@ export default function AsyncSelect({
 
       const { data } = await query;
       setOptions(
-        ((data as Record<string, unknown>[]) ?? []).map((row: Record<string, unknown>) => ({
-          value: String(row[valueColumn]),
-          label: String(row[labelColumn]),
-        }))
-      );
+  ((data as unknown as Record<string, unknown>[]) ?? []).map((row: Record<string, unknown>) => ({
+    value: String(row[valueColumn]),
+    label: String(row[labelColumn]),
+  }))
+);
       setLoading(false);
     }
     load();
