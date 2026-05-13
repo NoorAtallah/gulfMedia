@@ -1,8 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --gold: #D0B66A;
+  --navy: #202151;
+  --cream: #F5F1E8;
+  --red: #D61214;
+  --font-kufi: 'Noto Kufi Arabic', sans-serif;
+  --font-playfair: 'Playfair Display', serif;
 }
 
 @theme inline {

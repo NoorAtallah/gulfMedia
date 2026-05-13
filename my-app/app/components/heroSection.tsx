@@ -47,8 +47,6 @@ const CREAM = "#F5F1E8";
 const RED   = "#D61214";
 const AUTO  = 6000;
 
-const NAV_LINKS = ["الصحفيون", "المقالات", "البودكاست", "الدورات", "الفعاليات"];
-
 export default function HeroSection() {
   const [idx, setIdx]         = useState(0);
   const [prevIdx, setPrevIdx] = useState<number | null>(null);
@@ -153,18 +151,6 @@ export default function HeroSection() {
           height: clamp(72px, 10vh, 110px);
         }
 
-        .nav-link { position: relative; }
-        .nav-link::after {
-          content: '';
-          position: absolute;
-          bottom: -2px; right: 0;
-          width: 0; height: 0.5px;
-          background: ${CREAM};
-          transition: width .35s ease;
-        }
-        .nav-link:hover::after { width: 100%; }
-        .nav-link:hover { opacity: 1 !important; }
-
         .arrow-btn {
           width: 44px; height: 44px;
           border: 0.5px solid rgba(245,241,232,0.2);
@@ -202,25 +188,12 @@ export default function HeroSection() {
           background: ${GOLD};
           transition: width .06s linear;
         }
-
-        .live-dot {
-          animation: pulse 1.2s ease-in-out infinite;
-        }
-        @keyframes pulse {
-          0%,100% { opacity:1; }
-          50% { opacity:0.3; }
-        }
-
-        @media (max-width: 640px) {
-          .nav-links-hide { display: none; }
-        }
       `}</style>
 
       <div
         className="relative w-full h-screen overflow-hidden"
         style={{ background: NAVY, direction: "rtl", color: CREAM }}
       >
-
         {/* ── IMAGES ── */}
         <div className="absolute inset-0">
           {SLIDES.map((s, i) => (
@@ -244,12 +217,9 @@ export default function HeroSection() {
         <div
           className="absolute inset-0 z-10 pointer-events-none"
           style={{
-            background: `
-              radial-gradient(ellipse 75% 65% at 50% 50%, rgba(32,33,81,0.1) 0%, rgba(32,33,81,0.72) 100%)
-            `,
+            background: `radial-gradient(ellipse 75% 65% at 50% 50%, rgba(32,33,81,0.1) 0%, rgba(32,33,81,0.72) 100%)`,
           }}
         />
-        {/* Bottom gradient for bar readability */}
         <div
           className="absolute bottom-0 left-0 right-0 h-48 z-10 pointer-events-none"
           style={{
@@ -257,111 +227,6 @@ export default function HeroSection() {
             opacity: 0.6,
           }}
         />
-        {/* Top gradient for bar readability */}
-        <div
-          className="absolute top-0 left-0 right-0 h-48 z-10 pointer-events-none"
-          style={{
-            background: `linear-gradient(to bottom, ${NAVY} 0%, transparent 100%)`,
-            opacity: 0.6,
-          }}
-        />
-
-        {/* ── TOP LETTERBOX BAR ── */}
-        <div
-          className="bar-anim absolute top-0 left-0 right-0 z-20 flex items-center justify-between overflow-hidden"
-          style={{
-            background: NAVY,
-            padding: "0 clamp(24px, 5vw, 72px)",
-            borderBottom: `1px solid rgba(208,182,106,0.12)`,
-          }}
-        >
-          {/* Logo */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-            <span
-              style={{
-                fontFamily: "'Noto Kufi Arabic', sans-serif",
-                fontSize: "14px",
-                fontWeight: 700,
-                color: CREAM,
-                letterSpacing: "0.02em",
-              }}
-            >
-              منصة إعلاميو الخليج
-            </span>
-            <span
-              style={{
-                fontFamily: "'Playfair Display', serif",
-                fontSize: "9px",
-                fontStyle: "italic",
-                color: GOLD,
-                letterSpacing: "0.2em",
-                opacity: 0.8,
-              }}
-            >
-              Gulf Media Platform
-            </span>
-          </div>
-
-          {/* Nav */}
-          <nav className="nav-links-hide flex gap-8" dir="rtl">
-            {NAV_LINKS.map((item) => (
-              <a
-                key={item}
-                href="#"
-                className="nav-link"
-                style={{
-                  fontFamily: "'Noto Kufi Arabic', sans-serif",
-                  fontSize: "12px",
-                  letterSpacing: "0.04em",
-                  opacity: 0.45,
-                  color: CREAM,
-                  textDecoration: "none",
-                  transition: "opacity .3s",
-                }}
-              >
-                {item}
-              </a>
-            ))}
-          </nav>
-
-          {/* Right side — LIVE + counter */}
-          <div className="flex items-center gap-5" dir="ltr">
-            <div className="flex items-center gap-2">
-              <span
-                className="live-dot"
-                style={{
-                  width: "5px",
-                  height: "5px",
-                  borderRadius: "50%",
-                  background: RED,
-                  display: "inline-block",
-                }}
-              />
-              <span
-                style={{
-                  fontFamily: "'Playfair Display', serif",
-                  fontSize: "9px",
-                  letterSpacing: "0.3em",
-                  color: RED,
-                  textTransform: "uppercase",
-                }}
-              >
-                Live
-              </span>
-            </div>
-            <span
-              style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: "13px",
-                letterSpacing: "0.2em",
-                opacity: 0.3,
-                color: CREAM,
-              }}
-            >
-              {String(idx + 1).padStart(2, "0")} / {String(SLIDES.length).padStart(2, "0")}
-            </span>
-          </div>
-        </div>
 
         {/* ── BOTTOM LETTERBOX BAR ── */}
         <div
@@ -380,12 +245,7 @@ export default function HeroSection() {
                   <div
                     className="prog-fill"
                     style={{
-                      width:
-                        i === idx
-                          ? `${progress}%`
-                          : i < idx
-                          ? "100%"
-                          : "0%",
+                      width: i === idx ? `${progress}%` : i < idx ? "100%" : "0%",
                     }}
                   />
                 </div>
@@ -411,18 +271,26 @@ export default function HeroSection() {
             {slide.en} · ٢٠٢٥
           </span>
 
-          {/* Arrows */}
-          <div className="flex gap-2" dir="ltr">
+          {/* Slide counter + Arrows */}
+          <div className="flex items-center gap-4" dir="ltr">
+            <span
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: "13px",
+                letterSpacing: "0.2em",
+                opacity: 0.3,
+                color: CREAM,
+              }}
+            >
+              {String(idx + 1).padStart(2, "0")} / {String(SLIDES.length).padStart(2, "0")}
+            </span>
             <button className="arrow-btn" onClick={prev}>←</button>
             <button className="arrow-btn" onClick={next}>→</button>
           </div>
         </div>
 
         {/* ── CENTER TITLE CARD ── */}
-        <div
-          className="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none"
-        >
-          {/* Top gold rule */}
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none">
           <div
             key={`rule-t-${textKey}`}
             className="fade-up"
@@ -435,7 +303,6 @@ export default function HeroSection() {
             }}
           />
 
-          {/* Platform eyebrow */}
           <span
             key={`eyebrow-${textKey}`}
             className="sub-in"
@@ -453,7 +320,6 @@ export default function HeroSection() {
             Gulf Media Platform · منصة إعلاميو الخليج
           </span>
 
-          {/* ARABIC MAIN TITLE */}
           <h1
             key={`ar-${textKey}`}
             style={{
@@ -468,15 +334,11 @@ export default function HeroSection() {
               textShadow: `0 4px 60px rgba(32,33,81,0.6)`,
             }}
           >
-            <span
-              className="char"
-              style={{ animationDelay: "0.18s" }}
-            >
+            <span className="char" style={{ animationDelay: "0.18s" }}>
               {slide.ar}
             </span>
           </h1>
 
-          {/* Gold separator */}
           <div
             key={`sep-${textKey}`}
             className="sub-in"
@@ -489,7 +351,6 @@ export default function HeroSection() {
             }}
           />
 
-          {/* English subtitle */}
           <span
             key={`en-${textKey}`}
             className="sub-in"
@@ -506,7 +367,6 @@ export default function HeroSection() {
             {slide.en}
           </span>
 
-          {/* Arabic sub-tagline */}
           <span
             key={`sub-${textKey}`}
             className="fade-up"
@@ -524,7 +384,6 @@ export default function HeroSection() {
             {slide.sub}
           </span>
 
-          {/* Bottom gold rule */}
           <div
             key={`rule-b-${textKey}`}
             className="fade-up"
@@ -536,39 +395,7 @@ export default function HeroSection() {
               animationDelay: "0.7s",
             }}
           />
-
-          {/* CTA */}
-          <button
-            key={`cta-${textKey}`}
-            className="fade-up pointer-events-auto"
-            style={{
-              fontFamily: "'Noto Kufi Arabic', sans-serif",
-              fontWeight: 700,
-              fontSize: "13px",
-              color: NAVY,
-              background: GOLD,
-              border: "none",
-              padding: "12px 36px",
-              borderRadius: "2px",
-              cursor: "pointer",
-              letterSpacing: "0.04em",
-              marginTop: "24px",
-              animationDelay: "0.85s",
-              transition: "opacity 0.2s, transform 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.opacity = "0.88";
-              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.opacity = "1";
-              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-            }}
-          >
-            انضم إلى المنصة
-          </button>
         </div>
-
       </div>
     </>
   );
