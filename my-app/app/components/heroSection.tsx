@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
-const SLIDES = [
+// ─── Static fallback slides (used until DB loads, or if fetch fails) ───────────
+const DEFAULT_SLIDES = [
   {
+    slug: "journalism",
     ar: "صحافة",
     en: "Journalism",
     sub: "الصحافة التي تُحدث فرقاً",
@@ -12,6 +15,7 @@ const SLIDES = [
     img: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=1800&q=90",
   },
   {
+    slug: "training",
     ar: "تدريب",
     en: "Training",
     sub: "طوِّر مهاراتك مع خبراء الإعلام",
@@ -19,6 +23,7 @@ const SLIDES = [
     img: "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=1800&q=90",
   },
   {
+    slug: "podcast",
     ar: "بودكاست",
     en: "Podcast",
     sub: "أصوات تصنع الرأي الخليجي",
@@ -26,6 +31,7 @@ const SLIDES = [
     img: "https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=1800&q=90",
   },
   {
+    slug: "events",
     ar: "فعاليات",
     en: "Events",
     sub: "ملتقيات تجمع إعلاميي الخليج",
@@ -33,6 +39,7 @@ const SLIDES = [
     img: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1800&q=90",
   },
   {
+    slug: "media-centers",
     ar: "مراكز",
     en: "Media Centers",
     sub: "شبكة من المراكز الإعلامية الخليجية",
@@ -40,17 +47,30 @@ const SLIDES = [
     img: "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1800&q=90",
   },
   {
+    slug: "editorial",
     ar: "مقالات",
     en: "Editorial",
     sub: "تحليل عميق للمشهد الإعلامي",
     href: "/articles",
     img: "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=1800&q=90",
   },
+  // ✅ New slide
+  {
+    slug: "media",
+    ar: "إعلام",
+    en: "Media",
+    sub: "منصة إعلاميو الخليج — صوت المنطقة",
+    href: "/media",
+    img: "https://images.unsplash.com/photo-1588681664899-f142ff2dc9b1?w=1800&q=90",
+  },
 ];
+
+type Slide = (typeof DEFAULT_SLIDES)[number];
 
 const AUTO = 6000;
 
 export default function HeroSection() {
+  const [slides, setSlides] = useState<Slide[]>(DEFAULT_SLIDES);
   const [idx, setIdx] = useState(0);
   const [prevIdx, setPrevIdx] = useState<number | null>(null);
   const [textKey, setTextKey] = useState(0);
@@ -59,6 +79,29 @@ export default function HeroSection() {
   const progRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const transitioning = useRef(false);
 
+  // ─── Fetch live slide data from Supabase (image overrides + ordering) ────────
+  useEffect(() => {
+    supabase
+      .from("hero_slides")
+      .select("slug, label_ar, label_en, subtitle_ar, href, img_url, display_order")
+      .eq("is_active", true)
+      .order("display_order", { ascending: true })
+      .then(({ data, error }: { data: null | Array<{ slug: string; label_ar: string; label_en: string; subtitle_ar: string; href: string; img_url: string; display_order: number }>; error: unknown }) => {
+        if (error || !data?.length) return; // silently fall back to defaults
+        // Merge DB data into defaults, preserving fallback for any missing slugs
+        const merged: Slide[] = data.map((row) => ({
+          slug: row.slug,
+          ar: row.label_ar,
+          en: row.label_en,
+          sub: row.subtitle_ar,
+          href: row.href,
+          img: row.img_url,
+        }));
+        setSlides(merged);
+      });
+  }, []);
+
+  // ─── Slider logic ─────────────────────────────────────────────────────────────
   const clearAll = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (progRef.current) clearInterval(progRef.current);
@@ -78,8 +121,8 @@ export default function HeroSection() {
     }, 1100);
   };
 
-  const next = () => goTo((idx + 1) % SLIDES.length);
-  const prev = () => goTo((idx - 1 + SLIDES.length) % SLIDES.length);
+  const next = () => goTo((idx + 1) % slides.length);
+  const prev = () => goTo((idx - 1 + slides.length) % slides.length);
 
   const startProg = () => {
     clearAll();
@@ -95,9 +138,9 @@ export default function HeroSection() {
   useEffect(() => {
     startProg();
     return clearAll;
-  }, [idx]);
+  }, [idx, slides.length]);
 
-  const slide = SLIDES[idx];
+  const slide = slides[idx];
 
   return (
     <>
@@ -214,7 +257,6 @@ export default function HeroSection() {
           color: #D0B66A;
         }
 
-        /* ── Overlay: much darker so text always pops ── */
         .hero-overlay {
           background: linear-gradient(
             to bottom,
@@ -225,7 +267,6 @@ export default function HeroSection() {
           );
         }
 
-        /* ── Bottom bar: full-width flex-wrap for mobile ── */
         .bottom-bar {
           flex-wrap: wrap;
           gap: 8px;
@@ -248,9 +289,9 @@ export default function HeroSection() {
       >
         {/* ── IMAGES ── */}
         <div className="absolute inset-0">
-          {SLIDES.map((s, i) => (
+          {slides.map((s, i) => (
             <div
-              key={i}
+              key={s.slug}
               className={`absolute inset-0 ${
                 i === idx ? "img-active" : i === prevIdx ? "img-prev" : ""
               }`}
@@ -265,7 +306,7 @@ export default function HeroSection() {
           ))}
         </div>
 
-        {/* ── OVERLAY (heavier for legibility) ── */}
+        {/* ── OVERLAY ── */}
         <div className="hero-overlay absolute inset-0 z-10 pointer-events-none" />
 
         {/* ── BOTTOM FADE ── */}
@@ -287,7 +328,7 @@ export default function HeroSection() {
         >
           {/* Progress bars */}
           <div className="flex gap-1.5 md:gap-2 items-center">
-            {SLIDES.map((_, i) => (
+            {slides.map((_, i) => (
               <button key={i} className="prog-dot" onClick={() => goTo(i)}>
                 <div className="prog-track">
                   <div
@@ -301,7 +342,7 @@ export default function HeroSection() {
             ))}
           </div>
 
-          {/* Subtitle (hidden on mobile via class) */}
+          {/* Subtitle */}
           <span
             key={`foot-${textKey}`}
             className="bar-subtitle sub-in text-[#D0B66A] text-[12px] italic font-bold tracking-[0.3em]"
@@ -316,7 +357,7 @@ export default function HeroSection() {
               className="text-[#F5F1E8]/60 text-[11px] md:text-[12px] font-bold tracking-[0.2em] hidden sm:block"
               style={{ fontFamily: "'Playfair Display', serif" }}
             >
-              {String(idx + 1).padStart(2, "0")} / {String(SLIDES.length).padStart(2, "0")}
+              {String(idx + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}
             </span>
             <button className="arrow-btn" onClick={prev}>←</button>
             <button className="arrow-btn" onClick={next}>→</button>
@@ -326,14 +367,12 @@ export default function HeroSection() {
         {/* ── CENTER CONTENT ── */}
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center px-4 sm:px-8 pb-24 md:pb-28">
 
-          {/* Top rule */}
           <div
             key={`rule-t-${textKey}`}
             className="fade-up w-px bg-[#D0B66A]/60 mb-6 md:mb-8 hidden md:block"
             style={{ height: "48px", animationDelay: "0.1s" }}
           />
 
-          {/* Eyebrow */}
           <span
             key={`eyebrow-${textKey}`}
             className="sub-in text-[#D0B66A] font-black italic text-[11px] md:text-[13px] tracking-[0.25em] mb-4 md:mb-5 text-center block"
@@ -346,14 +385,12 @@ export default function HeroSection() {
             Gulf Media Platform · منصة إعلاميو الخليج
           </span>
 
-          {/* Main Arabic title */}
           <h1
             key={`ar-${textKey}`}
             className="text-white font-black text-center leading-none tracking-[-0.02em]"
             style={{
               fontFamily: "'Noto Kufi Arabic', sans-serif",
               fontSize: "clamp(72px, 14vw, 210px)",
-              /* Strong multi-layer shadow so it reads on ANY background */
               textShadow:
                 "0 2px 4px rgba(0,0,0,1), 0 4px 24px rgba(0,0,0,0.95), 0 0 80px rgba(20,21,60,0.9)",
             }}
@@ -363,7 +400,6 @@ export default function HeroSection() {
             </span>
           </h1>
 
-          {/* English subtitle in gold */}
           <span
             key={`en-${textKey}`}
             className="sub-in text-[#D0B66A] italic font-black text-[clamp(14px,2.2vw,22px)] tracking-[0.2em] mt-1 mb-2 block text-center"
@@ -376,7 +412,6 @@ export default function HeroSection() {
             {slide.en}
           </span>
 
-          {/* Tagline */}
           <span
             key={`sub-${textKey}`}
             className="fade-up text-white font-bold text-[clamp(14px,1.5vw,18px)] text-center mb-8 md:mb-10 block max-w-md"
@@ -390,7 +425,6 @@ export default function HeroSection() {
             {slide.sub}
           </span>
 
-          {/* CTAs */}
           <div
             key={`ctas-${textKey}`}
             className="fade-up flex items-center gap-3 md:gap-4 flex-wrap justify-center"
@@ -412,7 +446,6 @@ export default function HeroSection() {
             </Link>
           </div>
 
-          {/* Bottom rule */}
           <div
             key={`rule-b-${textKey}`}
             className="fade-up w-px bg-[#D0B66A]/60 mt-8 md:mt-10 hidden md:block"

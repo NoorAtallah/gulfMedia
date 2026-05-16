@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { adminInsert, adminUpdate, adminDelete } from "../../../lib/admin";
-// Add import at top of AdminForm.tsx:
 import AsyncSelect from "./AsyncSelect";
-// Add to FieldConfig type:
+
 export type FieldConfig = {
   key: string;
   label: string;
@@ -19,15 +18,18 @@ export type FieldConfig = {
     | "select"
     | "boolean"
     | "image"
+    | "file"  
     | "richtext"
-    | "async-select";   // ← add this
+    | "async-select";
   options?: { value: string; label: string }[];
-  asyncConfig?: {        // ← add this
+  asyncConfig?: {
     table: string;
     labelColumn: string;
     valueColumn?: string;
     filter?: { column: string; value: string };
   };
+  // For image fields: which bucket to upload to
+  bucket?: string;
   placeholder?: string;
   required?: boolean;
   span?: "full" | "half";
@@ -58,38 +60,67 @@ export default function AdminForm({
   );
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
+
+  // One hidden file input ref per image field
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   function set(key: string, value: unknown) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-async function handleSubmit() {
-  setStatus("loading");
-  setErrorMsg("");
+  // ─── Upload image to Supabase Storage ────────────────────────────────────────
+  async function handleUpload(field: FieldConfig, file: File) {
+    if (!field.bucket) return;
 
-  const payload = Object.fromEntries(
-    Object.entries(form).filter(([, v]) => v !== "" && v !== null && v !== undefined)
-  );
+    setUploading((u) => ({ ...u, [field.key]: true }));
 
-  const { error } = isEdit
-    ? await adminUpdate(table, String(initialData!.id), payload)
-    : await adminInsert(table, payload);
+    const ext = file.name.split(".").pop();
+    // Use table + field key + timestamp for a unique, organised path
+    const path = `${table}/${field.key}-${Date.now()}.${ext}`;
 
-  if (error) {
-    setErrorMsg(error);
-    setStatus("error");
-  } else {
-    setStatus("success");
-    setTimeout(() => router.push(backHref), 800);
+    const { error } = await supabase.storage
+      .from(field.bucket)
+      .upload(path, file, { upsert: true, cacheControl: "3600" });
+
+    if (error) {
+      setErrorMsg(`فشل رفع الصورة: ${error.message}`);
+      setStatus("error");
+    } else {
+      const { data } = supabase.storage.from(field.bucket).getPublicUrl(path);
+      set(field.key, data.publicUrl);
+    }
+
+    setUploading((u) => ({ ...u, [field.key]: false }));
   }
-}
 
+  // ─── Submit ───────────────────────────────────────────────────────────────────
+  async function handleSubmit() {
+    setStatus("loading");
+    setErrorMsg("");
 
- async function handleDelete() {
-  if (!confirm("هل أنت متأكد من الحذف؟ هذا الإجراء لا يمكن التراجع عنه.")) return;
-  await adminDelete(table, String(initialData!.id));
-  router.push(backHref);
-}
+    const payload = Object.fromEntries(
+      Object.entries(form).filter(([, v]) => v !== "" && v !== null && v !== undefined)
+    );
+
+    const { error } = isEdit
+      ? await adminUpdate(table, String(initialData!.id), payload)
+      : await adminInsert(table, payload);
+
+    if (error) {
+      setErrorMsg(error);
+      setStatus("error");
+    } else {
+      setStatus("success");
+      setTimeout(() => router.push(backHref), 800);
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm("هل أنت متأكد من الحذف؟ هذا الإجراء لا يمكن التراجع عنه.")) return;
+    await adminDelete(table, String(initialData!.id));
+    router.push(backHref);
+  }
 
   return (
     <>
@@ -145,7 +176,13 @@ async function handleSubmit() {
             {fields.map((field) => (
               <div
                 key={field.key}
-                className={field.span === "full" || field.type === "textarea" || field.type === "richtext" ? "md:col-span-2" : ""}
+                className={
+                  field.span === "full" ||
+                  field.type === "textarea" ||
+                  field.type === "richtext"
+                    ? "md:col-span-2"
+                    : ""
+                }
               >
                 <label
                   className="block text-[#202151] text-[11px] font-black tracking-wide mb-2"
@@ -156,15 +193,25 @@ async function handleSubmit() {
                 </label>
 
                 {/* Text / Email / URL / Number */}
-                {(field.type === "text" || field.type === "email" || field.type === "url" || field.type === "number") && (
+                {(field.type === "text" ||
+                  field.type === "email" ||
+                  field.type === "url" ||
+                  field.type === "number") && (
                   <input
                     type={field.type}
                     placeholder={field.placeholder ?? ""}
                     value={String(form[field.key] ?? "")}
-                    onChange={(e) => set(field.key, field.type === "number" ? Number(e.target.value) : e.target.value)}
+                    onChange={(e) =>
+                      set(
+                        field.key,
+                        field.type === "number" ? Number(e.target.value) : e.target.value
+                      )
+                    }
                     className="w-full bg-[#202151]/3 border border-[#202151]/15 hover:border-[#D0B66A]/40 focus:border-[#D0B66A] text-[#202151] text-[13px] font-bold px-4 py-3 outline-none transition-colors duration-200 placeholder:text-[#202151]/25 placeholder:font-normal rounded-sm"
                     style={{ fontFamily: "'Noto Kufi Arabic', sans-serif" }}
-                    dir={field.type === "email" || field.type === "url" ? "ltr" : "rtl"}
+                    dir={
+                      field.type === "email" || field.type === "url" ? "ltr" : "rtl"
+                    }
                   />
                 )}
 
@@ -220,28 +267,107 @@ async function handleSubmit() {
                   </div>
                 )}
 
-                {/* Image URL */}
-                {field.type === "image" && (
-                  <div className="flex flex-col gap-3">
-                    <input
-                      type="url"
-                      placeholder="https://..."
-                      value={String(form[field.key] ?? "")}
-                      onChange={(e) => set(field.key, e.target.value)}
-                      className="w-full bg-[#202151]/3 border border-[#202151]/15 hover:border-[#D0B66A]/40 focus:border-[#D0B66A] text-[#202151] text-[13px] font-bold px-4 py-3 outline-none transition-colors duration-200 placeholder:text-[#202151]/25 placeholder:font-normal rounded-sm"
-                      style={{ fontFamily: "'Noto Kufi Arabic', sans-serif" }}
-                      dir="ltr"
-                    />
-                    {Boolean(form[field.key]) && (
-                      <img
-                        src={String(form[field.key])}
-                        alt="preview"
-                        className="w-32 h-24 object-cover rounded-sm border border-[#D0B66A]/20"
-                      />
-                    )}
-                  </div>
-                )}
+                {/* Image — URL input + optional upload button if bucket is defined */}
+               {/* Image — URL input + optional upload button if bucket is defined */}
+{field.type === "image" && (
+  <div className="flex flex-col gap-3">
+    {field.bucket && (
+      <input
+        ref={(el) => { fileRefs.current[field.key] = el; }}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleUpload(field, file);
+        }}
+      />
+    )}
 
+    {/* Upload button — full width, above URL */}
+    {field.bucket && (
+      <button
+        type="button"
+        disabled={uploading[field.key]}
+        onClick={() => fileRefs.current[field.key]?.click()}
+        className="w-full bg-[#202151]/4 hover:bg-[#D0B66A]/10 border border-dashed border-[#202151]/20 hover:border-[#D0B66A]/60 text-[#202151]/50 hover:text-[#D0B66A] text-[12px] font-black py-3 rounded-sm transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+        style={{ fontFamily: "'Noto Kufi Arabic', sans-serif" }}
+      >
+        {uploading[field.key] ? "جارٍ الرفع..." : "↑ اضغط لرفع صورة"}
+      </button>
+    )}
+
+    {/* URL fallback input */}
+    <input
+      type="url"
+      placeholder={field.bucket ? "أو الصق رابط الصورة..." : "https://..."}
+      value={String(form[field.key] ?? "")}
+      onChange={(e) => set(field.key, e.target.value)}
+      className="w-full bg-[#202151]/3 border border-[#202151]/15 hover:border-[#D0B66A]/40 focus:border-[#D0B66A] text-[#202151] text-[13px] font-bold px-4 py-3 outline-none transition-colors duration-200 placeholder:text-[#202151]/25 placeholder:font-normal rounded-sm"
+      style={{ fontFamily: "'Noto Kufi Arabic', sans-serif" }}
+      dir="ltr"
+    />
+
+    {Boolean(form[field.key]) && (
+      <img
+        src={String(form[field.key])}
+        alt="preview"
+        className="w-32 h-24 object-cover rounded-sm border border-[#D0B66A]/20"
+      />
+    )}
+  </div>
+)}
+{/* File upload (PDF, etc.) */}
+{field.type === "file" && (
+  <div className="flex flex-col gap-3">
+    {field.bucket && (
+      <input
+        ref={(el) => { fileRefs.current[field.key] = el; }}
+        type="file"
+        accept=".pdf,.doc,.docx"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleUpload(field, file);
+        }}
+      />
+    )}
+
+    {field.bucket && (
+      <button
+        type="button"
+        disabled={uploading[field.key]}
+        onClick={() => fileRefs.current[field.key]?.click()}
+        className="w-full bg-[#202151]/4 hover:bg-[#D0B66A]/10 border border-dashed border-[#202151]/20 hover:border-[#D0B66A]/60 text-[#202151]/50 hover:text-[#D0B66A] text-[12px] font-black py-3 rounded-sm transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+        style={{ fontFamily: "'Noto Kufi Arabic', sans-serif" }}
+      >
+        {uploading[field.key] ? "جارٍ الرفع..." : "↑ اضغط لرفع ملف PDF"}
+      </button>
+    )}
+
+    <input
+      type="url"
+      placeholder={field.bucket ? "أو الصق رابط الملف..." : "https://..."}
+      value={String(form[field.key] ?? "")}
+      onChange={(e) => set(field.key, e.target.value)}
+      className="w-full bg-[#202151]/3 border border-[#202151]/15 hover:border-[#D0B66A]/40 focus:border-[#D0B66A] text-[#202151] text-[13px] font-bold px-4 py-3 outline-none transition-colors duration-200 placeholder:text-[#202151]/25 placeholder:font-normal rounded-sm"
+      style={{ fontFamily: "'Noto Kufi Arabic', sans-serif" }}
+      dir="ltr"
+    />
+
+    {Boolean(form[field.key]) && (
+      <a
+        href={String(form[field.key])}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[#D0B66A] text-[11px] font-black underline"
+        style={{ fontFamily: "'Noto Kufi Arabic', sans-serif" }}
+      >
+        ↗ عرض الملف المرفوع
+      </a>
+    )}
+  </div>
+)}
                 {/* Async Select */}
                 {field.type === "async-select" && (
                   <AsyncSelect
@@ -272,11 +398,17 @@ async function handleSubmit() {
           <div className="flex items-center gap-4 mt-8 pt-6 border-t border-[#D0B66A]/15">
             <button
               onClick={handleSubmit}
-              disabled={status === "loading"}
+              disabled={status === "loading" || Object.values(uploading).some(Boolean)}
               className="text-[#202151] bg-[#D0B66A] text-[14px] font-black px-10 py-3.5 rounded-sm tracking-wide transition-opacity duration-200 hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ fontFamily: "'Noto Kufi Arabic', sans-serif" }}
             >
-              {status === "loading" ? "جارٍ الحفظ..." : status === "success" ? "تم الحفظ ✓" : isEdit ? "حفظ التعديلات" : "إضافة"}
+              {status === "loading"
+                ? "جارٍ الحفظ..."
+                : status === "success"
+                ? "تم الحفظ ✓"
+                : isEdit
+                ? "حفظ التعديلات"
+                : "إضافة"}
             </button>
             <button
               onClick={() => router.push(backHref)}

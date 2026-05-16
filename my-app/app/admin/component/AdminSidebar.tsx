@@ -7,6 +7,8 @@ import { useMemo } from "react";
 
 const NAV = [
   { label: "الرئيسية", href: "/admin", icon: "◈" },
+  { label: "الهيرو", href: "/admin/hero", icon: "◧" },
+  { label: "التصنيفات", href: "/admin/categories", icon: "◫" },
   { label: "المقالات", href: "/admin/articles", icon: "✦" },
   { label: "الإعلاميون", href: "/admin/journalists", icon: "◉" },
   { label: "البودكاست", href: "/admin/podcasts", icon: "◷" },
